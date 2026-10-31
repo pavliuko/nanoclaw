@@ -12,6 +12,14 @@ Facts about continente.pt. Write new facts that you learn to `memory/shopping/st
 | "Produto indisponível" | Out of stock. On a result tile this label can be wrong. Read the product page. |
 | "Não encontramos resultados para X" | The search found nothing. The results below are for a broader query. |
 
+## Login
+
+1. Open `https://www.continente.pt/login/`. The cookie banner blocks clicks. Close it first. Decline the cookies that are not necessary, as in step 1.7 of the skill workflow.
+2. The form is in an iframe from `login.continente.pt`. `snapshot -i` shows the fields inside the iframe. Use their refs.
+3. Page 1: type the email or phone number in "Introduza o número de telefone ou email". Click "Avançar".
+4. Page 2 can show a password field or ask for a code. Type the password, or ask the user for the code. Then click the submit button.
+5. After the login, the header does not show "Login ou Registo".
+
 ## Promotions
 
 - **"EM CARTÃO" or "Cartão Continente".** The discount goes to the Cartão Continente balance as credit. The price at checkout does not change. Tell the user this every time.

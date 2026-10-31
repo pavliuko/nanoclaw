@@ -1,28 +1,52 @@
 # Login and Browser Session
 
-You do not log in. The operator logs in to the store account of the user on the computer that runs NanoClaw. Then the operator gives you a browser state file. The file contains the session cookies of that account. Critical rule 8 applies to it.
+You log in to the store account of the user yourself. The user gives you the username and the password in chat.
 
-Each store has a separate state file. A store without a state file has no session. You can search it as a guest, but you cannot change its cart.
+A store password is not a gateway credential. The rule "keep real credentials in the gateway" is for API tokens. A store website has no API that a gateway can use. The user decided that you keep the store password in a file and type it into the login form.
 
-## State file
+## Files
 
-The path is `/workspace/agent/browser-state/<domain>.json`. Example: `/workspace/agent/browser-state/continente.pt.json`.
+A store can have two files in `/workspace/agent/browser-state/`:
+
+- `<domain>.json` — the browser session (cookies). Example: `continente.pt.json`.
+- `<domain>.login.json` — the username and the password. Example: `continente.pt.login.json`:
+
+  ```json
+  {"username": "name@example.com", "password": "..."}
+  ```
 
 ## Load the session
 
-1. Make sure that the state file exists. If it does not exist, go to [Ask the operator to log in](#ask-the-operator-to-log-in).
-2. Load it before you open the store:
+1. If the session file exists, load it before you open the store:
 
    ```bash
    agent-browser state load /workspace/agent/browser-state/continente.pt.json
    agent-browser open https://www.continente.pt
    ```
 
-3. Make sure that the page shows the account name or the account menu. If it shows a login link, for example "Login" or "Entrar", the session expired. Go to [Ask the operator to log in](#ask-the-operator-to-log-in).
+2. Make sure that the page shows the account name or the account menu. If it shows a login link, for example "Login", "Entrar", or "Login ou Registo", the session expired. Go to [Log in](#log-in).
+3. If the session file does not exist, open the store and go to [Log in](#log-in).
+
+## Log in
+
+1. If the login file does not exist, ask the user for the username and the password of this store. When the user replies, write the login file. Set its file mode to 600. Do not ask again in later sessions.
+2. Open the login page of the store. If the store has a reference file, read its login section.
+3. Use `agent-browser snapshot -i` to find the fields and the buttons.
+4. Type the username and the password. Click the submit button.
+5. Some stores show the password field only after you submit the username. On these stores, submit each page.
+6. If the store asks for a code from SMS or email, ask the user for the code. Type it when the user replies.
+7. Make sure that the page shows the account. Then [save the session](#save-the-session).
+
+If the store says that the username or the password is wrong:
+
+1. Do not try again with the same password. Many failed logins can lock the account.
+2. Tell the user. Ask for the correct password. Write it to the login file.
+
+If you cannot pass a step, for example a CAPTCHA, stop. Tell the user what the page shows. Then offer the [operator login](#operator-login).
 
 ## Save the session
 
-The store changes the session cookies over time. Save the state at the end of each shopping session, so the next session starts logged in.
+The store changes the session cookies over time. Save the session after each login and at the end of each shopping session, so the next session starts logged in.
 
 1. Make sure that the page still shows the account. Do not save a guest session over a good file.
 2. Save to the same path:
@@ -31,14 +55,9 @@ The store changes the session cookies over time. Save the state at the end of ea
    agent-browser state save /workspace/agent/browser-state/continente.pt.json
    ```
 
-## Ask the operator to log in
+## Operator login
 
-Stop all cart changes in that store. Do not try to log in. Send the steps below to the user, in the language of the user. Tell them these facts:
-
-- Only the operator can do the steps, on the computer that runs NanoClaw.
-- The owner of the store account types the password in the browser window.
-
-Replace `<domain>` and the URL with the store.
+Use this only when you cannot log in yourself, for example because of a CAPTCHA. The operator logs in on the computer that runs NanoClaw. Send these steps to the user. Replace `<domain>`, `<agent folder>`, and the URL.
 
 ```
 cd <nanoclaw folder>
