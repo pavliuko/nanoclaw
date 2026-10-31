@@ -16,6 +16,7 @@ import {
   LinkButton,
   type CardChild,
   type Adapter,
+  type Attachment,
   type AssistantContextChangedEvent,
   type AssistantThreadStartedEvent,
   type ConcurrencyStrategy,
@@ -374,6 +375,15 @@ export interface ChatSdkBridgeConfig {
    */
   transformOutboundText?: (text: string) => string;
   /**
+   * Upload outbound image files (png/jpg/jpeg/webp) as native photos instead
+   * of documents. Applies only when every file in the message is an image and
+   * there are at most `maxCount` of them (several become an album). Text up to
+   * `captionLimit` rides on the photo as its caption; longer text is posted as
+   * its own message first. If the platform rejects the photo upload, the same
+   * files are retried as documents. Unset ⇒ files are always documents.
+   */
+  photoUploads?: { captionLimit: number; maxCount: number };
+  /**
    * Optional escape for host-built ask_question card text (open and resolved
    * cards). Approval cards mix host wording with untrusted values (agent
    * arguments, sender names); channels whose card text is raw platform markup
@@ -539,6 +549,33 @@ export function appendRawText(
   if (!extra) return;
   const text = typeof serialized.text === 'string' ? serialized.text : '';
   serialized.text = text ? `${text}\n\n${extra}` : extra;
+}
+
+const PHOTO_MIME_BY_EXT: Record<string, string> = {
+  png: 'image/png',
+  jpg: 'image/jpeg',
+  jpeg: 'image/jpeg',
+  webp: 'image/webp',
+};
+
+/**
+ * Map outbound files to image attachments when every file is a png/jpg/webp
+ * and there are 1..maxCount of them. Returns null otherwise, so the caller
+ * keeps the document path.
+ */
+export function toPhotoAttachments(
+  files: Array<{ data: Buffer; filename: string }> | undefined,
+  maxCount: number,
+): Attachment[] | null {
+  if (!files || files.length === 0 || files.length > maxCount) return null;
+  const attachments: Attachment[] = [];
+  for (const f of files) {
+    const ext = f.filename.split('.').pop()?.toLowerCase() ?? '';
+    const mimeType = PHOTO_MIME_BY_EXT[ext];
+    if (!mimeType) return null;
+    attachments.push({ type: 'image', data: f.data, name: f.filename, mimeType });
+  }
+  return attachments;
 }
 
 export function createChatSdkBridge(config: ChatSdkBridgeConfig): ChannelAdapter {
@@ -1061,6 +1098,40 @@ export function createChatSdkBridge(config: ChatSdkBridgeConfig): ChannelAdapter
       // Normal message
       const rawText = (content.markdown as string) || (content.text as string);
       const text = rawText ? transformText(rawText) : rawText;
+
+      // Images as native photos (opt-in per channel). Only when every file is
+      // an image — the adapter cannot mix photo and document uploads.
+      const photos = config.photoUploads ? toPhotoAttachments(message.files, config.photoUploads.maxCount) : null;
+      if (photos && config.photoUploads) {
+        let firstId: string | undefined;
+        let caption = text || '';
+        if (caption.length > config.photoUploads.captionLimit) {
+          // Too long for a caption: post the text on its own first.
+          const chunks =
+            config.maxTextLength && caption.length > config.maxTextLength
+              ? splitForLimit(caption, config.maxTextLength)
+              : [caption];
+          for (let i = 0; i < chunks.length; i++) {
+            const result = await adapter.postMessage(tid, { markdown: chunks[i] });
+            if (i === 0) firstId = result?.id;
+          }
+          caption = '';
+        }
+        try {
+          const result = await adapter.postMessage(tid, { markdown: caption, attachments: photos });
+          return firstId ?? result?.id;
+        } catch (err) {
+          // e.g. Telegram PHOTO_INVALID_DIMENSIONS on a tall full-page screenshot.
+          log.warn('Photo upload rejected, retrying as documents', { err });
+          const fileUploads = message.files!.map((f: { data: Buffer; filename: string }) => ({
+            data: f.data,
+            filename: f.filename,
+          }));
+          const result = await adapter.postMessage(tid, { markdown: caption, files: fileUploads });
+          return firstId ?? result?.id;
+        }
+      }
+
       if (text) {
         // Attach files if present (FileUpload format: { data, filename })
         const fileUploads = message.files?.map((f: { data: Buffer; filename: string }) => ({

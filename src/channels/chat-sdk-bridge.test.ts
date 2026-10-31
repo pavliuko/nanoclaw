@@ -14,6 +14,7 @@ import {
   createChatSdkBridge,
   splitCardText,
   splitForLimit,
+  toPhotoAttachments,
 } from './chat-sdk-bridge.js';
 
 vi.mock('../webhook-server.js', () => ({
@@ -1132,5 +1133,77 @@ describe('createChatSdkBridge — local Gateway webhook', () => {
     } finally {
       await bridge.teardown();
     }
+  });
+});
+
+describe('photo uploads', () => {
+  const png = { data: Buffer.from('png'), filename: '1.png' };
+  const jpg = { data: Buffer.from('jpg'), filename: '2.JPG' };
+  const pdf = { data: Buffer.from('pdf'), filename: 'list.pdf' };
+  const photoUploads = { captionLimit: 20, maxCount: 2 };
+
+  it('maps image files to image attachments with a mime type', () => {
+    expect(toPhotoAttachments([png, jpg], 10)).toEqual([
+      { type: 'image', data: png.data, name: '1.png', mimeType: 'image/png' },
+      { type: 'image', data: jpg.data, name: '2.JPG', mimeType: 'image/jpeg' },
+    ]);
+  });
+
+  it('returns null for mixed files, too many files, or none', () => {
+    expect(toPhotoAttachments([png, pdf], 10)).toBeNull();
+    expect(toPhotoAttachments([png, jpg], 1)).toBeNull();
+    expect(toPhotoAttachments([], 10)).toBeNull();
+    expect(toPhotoAttachments(undefined, 10)).toBeNull();
+  });
+
+  it('keeps images as documents when photoUploads is unset', async () => {
+    const { calls, postMessage } = makePostCapture();
+    const bridge = createChatSdkBridge({ adapter: stubAdapter({ postMessage }), supportsThreads: false });
+    await bridge.deliver('telegram:1', null, { kind: 'chat', content: { text: 'hi' }, files: [png] });
+    expect(calls).toHaveLength(1);
+    expect(calls[0].message).toMatchObject({ markdown: 'hi', files: [png] });
+  });
+
+  it('posts images as photo attachments with the text as caption', async () => {
+    const { calls, postMessage } = makePostCapture();
+    const bridge = createChatSdkBridge({ adapter: stubAdapter({ postMessage }), supportsThreads: false, photoUploads });
+    await bridge.deliver('telegram:1', null, { kind: 'chat', content: { text: '1) Wine' }, files: [png] });
+    expect(calls).toHaveLength(1);
+    const msg = calls[0].message as { markdown: string; attachments: unknown[]; files?: unknown };
+    expect(msg.markdown).toBe('1) Wine');
+    expect(msg.files).toBeUndefined();
+    expect(msg.attachments).toEqual([{ type: 'image', data: png.data, name: '1.png', mimeType: 'image/png' }]);
+  });
+
+  it('posts text over the caption limit first, then the photos without caption', async () => {
+    const { calls, postMessage } = makePostCapture();
+    const bridge = createChatSdkBridge({ adapter: stubAdapter({ postMessage }), supportsThreads: false, photoUploads });
+    const long = 'x'.repeat(21);
+    await bridge.deliver('telegram:1', null, { kind: 'chat', content: { text: long }, files: [png] });
+    expect(calls).toHaveLength(2);
+    expect(calls[0].message).toEqual({ markdown: long });
+    expect(calls[1].message).toMatchObject({ markdown: '' });
+    expect((calls[1].message as { attachments: unknown[] }).attachments).toHaveLength(1);
+  });
+
+  it('falls back to documents when the photo upload is rejected', async () => {
+    const calls: PostCall[] = [];
+    const postMessage = async (threadId: string, message: AdapterPostableMessage): Promise<RawMessage<unknown>> => {
+      calls.push({ threadId, message });
+      if ((message as { attachments?: unknown[] }).attachments) throw new Error('PHOTO_INVALID_DIMENSIONS');
+      return { id: 'msg-doc', threadId, raw: {} };
+    };
+    const bridge = createChatSdkBridge({ adapter: stubAdapter({ postMessage }), supportsThreads: false, photoUploads });
+    const id = await bridge.deliver('telegram:1', null, { kind: 'chat', content: { text: 'cap' }, files: [png] });
+    expect(id).toBe('msg-doc');
+    expect(calls).toHaveLength(2);
+    expect(calls[1].message).toMatchObject({ markdown: 'cap', files: [png] });
+  });
+
+  it('keeps documents when any file is not an image', async () => {
+    const { calls, postMessage } = makePostCapture();
+    const bridge = createChatSdkBridge({ adapter: stubAdapter({ postMessage }), supportsThreads: false, photoUploads });
+    await bridge.deliver('telegram:1', null, { kind: 'chat', content: { text: 'hi' }, files: [png, pdf] });
+    expect(calls[0].message).toMatchObject({ markdown: 'hi', files: [png, pdf] });
   });
 });

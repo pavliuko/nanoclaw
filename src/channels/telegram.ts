@@ -404,6 +404,10 @@ export function createTelegramBridge(options: TelegramBridgeOptions = {}): Chann
     // front of the new one, downgraded **bold** to *single-star* — which the
     // adapter then parsed as emphasis and rendered as _italic_.
     maxTextLength: 4000,
+    // Send image files as Telegram photos, not documents. Both numbers are
+    // Telegram API limits, not a policy: caption ≤ 1024 chars, and one
+    // message (album) holds ≤ 10 media. What to send is the skill's choice.
+    photoUploads: { captionLimit: 1024, maxCount: 10 },
   });
 
   const botUsernamePromise = fetchBotUsername(token);
