@@ -5,12 +5,12 @@ Store "add" buttons often fail and show no error. Do not trust an add until the 
 ## Add items
 
 1. Open the product page of the item. Do not add from a tile in the search results. Tile buttons often do nothing and show no error.
-2. On the product page, make sure that the size and the price are the same as in the list that got the "yes". A search result can open a different size.
+2. On the product page, make sure that the size and the price are the same as for the product that you selected. A search result can open a different size.
 3. Read the cart counter and the cart total in the page header.
 4. Run `agent-browser snapshot -i` to get fresh element refs. Pages move after banners load, so old refs can point to the wrong element.
 5. Click the add button by its ref.
 6. Read the cart counter and the cart total again. If they did not change, the add failed.
-7. After not more than 5 adds, open the cart page. Compare it with the list that got the "yes".
+7. After not more than 5 adds, open the cart page. Compare it with the requested items.
 
 Do not tell the user that an item is in the cart before step 7 shows it.
 

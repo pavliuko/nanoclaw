@@ -1,6 +1,6 @@
 # Restock Check
 
-Find the staples that the household probably needs before they see an empty package. Do this check only after you finish the requested list, or when the user asks.
+Find the staples that the household probably needs before they see an empty package. Do this check only when the user asks.
 
 ## Sources
 
