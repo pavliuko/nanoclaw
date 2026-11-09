@@ -43,7 +43,9 @@ Read a reference file when the workflow step names it. Each file is in this skil
 - `references/deals-and-unit-prices.md` — compare promotions and unit prices. Read it before you compare options.
 - `references/cart-mechanics.md` — add items, check the cart, keep the cart in sync with changes by the user. Read it before the first cart change in a session.
 - `references/restock.md` — use favourites, order history, and the purchase log to find groceries and household staples that are running out.
+- `references/clothing-fit.md` — select clothes and shoes sizes from garment charts and order history. Read it before you recommend or add clothes or shoes.
 - `references/continente.md` — continente.pt labels, traps, and page names. Read it before you shop on continente.pt.
+- `references/vinted.md` — vinted.pt search, condition, status, and fakes. Read it before you search on Vinted.
 
 You can shop in any store. For a store without a reference file, use the general rules and the memory note of that store.
 
@@ -141,6 +143,7 @@ Procedure for one photo for each option:
 
 1. Read `references/deals-and-unit-prices.md` and the reference file of the store, if it exists.
 2. If you search more than one store, read `references/comparing-stores.md`.
+   If the items are clothes or shoes, read `references/clothing-fit.md`.
 3. Search for each item. Compare the candidates with the criteria below. Criterion 1 has the highest priority.
    1. The candidate satisfies all constraints and preferences. A candidate that fails one of them is not a candidate.
    2. The full cost is lower than the full cost of the other candidates. For groceries, compare the unit price. For other products, include the delivery cost.
@@ -208,3 +211,8 @@ Tell the user plainly. Do not invent an answer.
 
 | Issue | Solution |
 |---|---|
+| The price on the page is without VAT. Some Portuguese stores that also sell to companies show the price without IVA in large type and the total with IVA ("IVA incl.", +23%) in small text. | Always give the price with VAT. Look for "s/IVA", "sem IVA", "IVA incl." near each price. |
+| The search found few results, so you told the user that the store does not sell the product. | A short result list is not evidence. Search with several words in the language of the store. Open the category menu. Example: a chair with a writing tray is "cadeira com palmatória", not "suporte portátil". |
+| You gave the stock or the size from a listing or a filter. The product was sold out in that colour or size. | Read the stock, the size picker, and the delivery date on the product page, for the exact colour and size you recommend. |
+| You selected a clothes size from the label. | Compare the garment chart with the reference garment of the user. See `references/clothing-fit.md`. |
+| You named a product without a link. | Give the link for each product, every time. A product without a link is an unfinished answer. |
